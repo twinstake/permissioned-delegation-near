@@ -1,6 +1,6 @@
 # Staking / Delegation contract
 
-This contract provides a way for other users to delegate funds to a single validation node.
+This contract provides a way for other users to delegate funds to a single validation node with functionality of whitelist accounts.
 
 Implements the https://github.com/nearprotocol/NEPs/pull/27 standard.
 
@@ -15,6 +15,15 @@ These users accrue rewards (subtracted fees set by the owner).
 Then they can unstake and withdraw their balance after some unlocking period.
 
 ## Staking pool implementation details
+
+==================================================================================================
+Differences from the original contract which described below:
+- added `whitelist_account_ids` LookupSet to store whitelisted accounts;
+- added additional checks for `deposit`, `stake`, `deposit_and_stake`, `deposit_all`, `stake_all` methods to allow only whitelisted accounts to perform these operations;
+- added `add_to_whitelist` and `remove_from_whitelist` methods to manage `whitelist_account_ids` LookupSet;
+- added `is_whitelisted_account_id` method to check if account is whitelisted;
+- fixed existing and added some new unit-tests to cover new functionality.
+==================================================================================================
 
 For secure operation of the staking pool, the contract should not have any access keys.
 Otherwise the contract account may issue a transaction that can violate the contract guarantees.
