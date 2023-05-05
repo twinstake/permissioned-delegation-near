@@ -42,7 +42,9 @@ just remove folder `/home/<your_account>/.cargo/registry` and try
 
 ### Test error
 
-if you get error like this:
+Staking-pool contract integration test doensn't compile at all (even for standart contract)
+
+However, staking-pool-factory integration test compiles and runs successfully but you can get error like this:
 
 ```
 error[E0554]: `#![feature]` may not be used on the stable release channel
