@@ -11,7 +11,7 @@ by NEAR Foundation..
 
 ## Staking pool implementation details
 
-`staking-pool` based on the [standart](https://github.com/near/core-contracts/tree/master/staking-pool) NEAR staking pool contract with some modifications:
+`staking-pool` based on the [standard](https://github.com/near/core-contracts/tree/master/staking-pool) NEAR staking pool contract with some modifications:
 
 - added `whitelist_account_ids` LookupSet to store whitelisted accounts;
 - added additional checks for `deposit`, `stake`, `deposit_and_stake`, `deposit_all`, `stake_all` methods to allow only whitelisted accounts to perform these operations;
@@ -22,11 +22,11 @@ by NEAR Foundation..
 
 ## Staking pool factory implementation details
 
-`staking-pool-factory` has same code as [standart](https://github.com/near/core-contracts/tree/master/staking-pool-factory) NEAR staking pool factory contract without any modifications. Purpose to add this contract is next: contract use relative path to staking pool contract binary (`"../../staking-pool/res/staking_pool.wasm"`) and should be recompiled with new staking pool contract binary.
+`staking-pool-factory` has same code as [standard](https://github.com/near/core-contracts/tree/master/staking-pool-factory) NEAR staking pool factory contract without any modifications. Purpose to add this contract is next: contract use relative path to staking pool contract binary (`"../../staking-pool/res/staking_pool.wasm"`) and should be recompiled with new staking pool contract binary.
 
 ## Whitelist implementation details
 
-`whitelist` contract has same code as [standart](https://github.com/near/core-contracts/tree/master/whitelist) NEAR whitelist contract without any modifications. Purpose to add this contract is next: integration tests of `staking-pool-factory` uses whitelist contract folder to achive whitelist contract binary.
+`whitelist` contract has same code as [standard](https://github.com/near/core-contracts/tree/master/whitelist) NEAR whitelist contract without any modifications. Purpose to add this contract is next: integration tests of `staking-pool-factory` uses whitelist contract folder to achive whitelist contract binary.
 
 # Possible issues
 
@@ -42,7 +42,7 @@ just remove folder `/home/<your_account>/.cargo/registry` and try
 
 ### Test error
 
-Staking-pool contract integration test doensn't compile at all (even for standart contract)
+Staking-pool contract integration test doensn't compile at all (even for standard contract)
 
 However, staking-pool-factory integration test compiles and runs successfully but you can get error like this:
 
