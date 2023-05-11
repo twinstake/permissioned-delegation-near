@@ -1,7 +1,7 @@
 # Staking Pool Factory Contract
 ===================
 
-Contract has same code as standart contract which is described below. However, it uses relative path to staking pool contract binary (`"../../staking-pool/res/staking_pool.wasm"`) and should be recompiled with new staking pool contract binary.
+Contract has same code as standard contract which is described below. However, it uses relative path to staking pool contract binary (`"../../staking-pool/res/staking_pool.wasm"`) and should be recompiled with new staking pool contract binary.
 
 ===================
 
