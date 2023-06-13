@@ -26,6 +26,7 @@ quickcheck = "0.9"
 quickcheck_macros = "0.9"
 log = "0.4"
 env_logger = { version = "0.7.1", default-features = false }
-near-crypto = { git = "https://github.com/nearprotocol/nearcore.git" }
-near-primitives = { git = "https://github.com/nearprotocol/nearcore.git" }
-near-runtime-standalone = { git = "https://github.com/nearprotocol/nearcore.git" }
+# Latest version supporting 'near_runtime_standalone'
+near-crypto = { git = "https://github.com/nearprotocol/nearcore.git", rev = "1915591" }
+near-primitives = { git = "https://github.com/nearprotocol/nearcore.git", rev = "1915591"}
+near-runtime-standalone = { git = "https://github.com/nearprotocol/nearcore.git", rev = "1915591" }

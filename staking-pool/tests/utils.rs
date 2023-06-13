@@ -69,7 +69,7 @@ impl ExternalUser {
         amount: Balance,
     ) -> Result<ExternalUser, ExecutionOutcome> {
         let new_signer =
-            InMemorySigner::from_seed(new_account_id, KeyType::ED25519, &new_account_id);
+            InMemorySigner::from_seed(&new_account_id, KeyType::ED25519, &new_account_id);
         let tx = self
             .new_tx(runtime, new_account_id.clone())
             .create_account()
