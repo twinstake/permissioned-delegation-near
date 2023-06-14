@@ -1,27 +1,25 @@
-extern crate env_logger;
-#[allow(unused_imports)]
-#[macro_use]
-extern crate log;
-extern crate quickcheck;
-#[macro_use(quickcheck)]
-extern crate quickcheck_macros;
 mod utils;
 
-use near_primitives::types::{AccountId, Balance};
+extern crate env_logger;
+extern crate log;
+#[cfg(test)]
+extern crate quickcheck;
+#[cfg(test)]
+#[macro_use(quickcheck)]
+extern crate quickcheck_macros;
+
+use near_primitives::types::Balance;
 use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
 use utils::{call_pool, init_pool, ntoy, wait_epoch};
-
-use near_runtime_standalone::RuntimeStandalone;
-
-#[allow(dead_code)]
-fn check_invariants(_runtime: &mut RuntimeStandalone, _users: &[AccountId]) {}
 
 #[quickcheck]
 fn qc_should_stake(initial_balance: Balance) -> bool {
     let (mut runtime, root) = init_pool(ntoy(30));
     let bob = root
         .create_external(&mut runtime, "bob".into(), ntoy(100))
+        .unwrap();
+    root.add_to_whitelist(&mut runtime, bob.account_id())
         .unwrap();
 
     let initial_balance = initial_balance + 1;
@@ -58,6 +56,9 @@ fn qc_test_deposit_withdraw_standalone(inital_balance: Balance) -> bool {
     let bob = root
         .create_external(&mut runtime, "bob".into(), ntoy(100))
         .unwrap();
+    root.add_to_whitelist(&mut runtime, bob.account_id())
+        .unwrap();
+
     bob.pool_deposit(&mut runtime, deposit_amount).unwrap();
     let _res = bob.get_account_unstaked_balance(&runtime);
 
