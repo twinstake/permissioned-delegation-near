@@ -124,6 +124,23 @@ impl ExternalUser {
         outcome_into_result(res)
     }
 
+    pub fn add_to_whitelist(&self, runtime: &mut RuntimeStandalone, account_id: &AccountId) -> TxResult {
+        let args = json!({
+            "account_id": account_id
+        })
+        .to_string()
+        .as_bytes()
+        .to_vec();
+
+        let tx = self
+            .new_tx(runtime, POOL_ACCOUNT_ID.into())
+            .function_call("add_to_whitelist".into(), args, MAX_GAS, 0)
+            .sign(&self.signer);
+        let res = runtime.resolve_tx(tx).unwrap();
+        runtime.process_all().unwrap();
+        outcome_into_result(res)
+    }
+
     pub fn pool_deposit(&self, runtime: &mut RuntimeStandalone, amount: Balance) -> TxResult {
         let tx = self
             .new_tx(runtime, POOL_ACCOUNT_ID.into())

@@ -31,6 +31,7 @@ fn multi_accounts_max_roundtrip() {
         } else {
             break;
         };
+        root.add_to_whitelist(runtime, acc.account_id()).unwrap();
         acc.pool_deposit(runtime, to_spend).unwrap();
         spent_total += to_spend;
         dbg!(spent_total);
