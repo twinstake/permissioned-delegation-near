@@ -19,7 +19,6 @@ by NEAR Foundation..
 - added `is_whitelisted_account_id` method to check if account is whitelisted;
 - fixed existing and added some new unit-tests to cover new functionality.
 
-
 ## Staking pool factory implementation details
 
 `staking-pool-factory` has same code as [standard](https://github.com/near/core-contracts/tree/master/staking-pool-factory) NEAR staking pool factory contract without any modifications. Purpose to add this contract is next: contract use relative path to staking pool contract binary (`"../../staking-pool/res/staking_pool.wasm"`) and should be recompiled with new staking pool contract binary.
@@ -28,29 +27,10 @@ by NEAR Foundation..
 
 `whitelist` contract has same code as [standard](https://github.com/near/core-contracts/tree/master/whitelist) NEAR whitelist contract without any modifications. Purpose to add this contract is next: integration tests of `staking-pool-factory` uses whitelist contract folder to achive whitelist contract binary.
 
-# Possible issues
+# Building
 
-### Build error
+It's **highly** recommended to use the provided Docker image to set up a consistent development environment due to the usage of native dependencies.
 
-if you get error like this:
+If you're using VSCode, a `devcontainer` configuration is provided already. [You can read more about it here](https://code.visualstudio.com/docs/devcontainers/containers)
 
-```
-error[E0407]: method `to_i128` is not a member of trait `ToPrimitive`
-```
-
-just remove folder `/home/<your_account>/.cargo/registry` and try
-
-### Test error
-
-Staking-pool contract integration test doensn't compile at all (even for standard contract)
-
-However, staking-pool-factory integration test compiles and runs successfully but you can get error like this:
-
-```
-error[E0554]: `#![feature]` may not be used on the stable release channel
-  --> /home/<your_account>/.cargo/registry/src/github.com-1ecc6299db9ec823/wasmer-singlepass-backend-0.17.1/src/lib.rs:10:1
-   |
-10 | #![feature(proc_macro_hygiene)]
-   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-```
-just remove this line in the corresponding file and try again
+Each project contains a `build.sh` and `test.sh` which build and test each project, respectively. You should use this scripts instead of `cargo build` and `cargo test` directly since some post-build commands are necessary after building each project.

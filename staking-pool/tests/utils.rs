@@ -69,7 +69,7 @@ impl ExternalUser {
         amount: Balance,
     ) -> Result<ExternalUser, ExecutionOutcome> {
         let new_signer =
-            InMemorySigner::from_seed(new_account_id, KeyType::ED25519, &new_account_id);
+            InMemorySigner::from_seed(&new_account_id, KeyType::ED25519, &new_account_id);
         let tx = self
             .new_tx(runtime, new_account_id.clone())
             .create_account()
@@ -118,6 +118,23 @@ impl ExternalUser {
             .transfer(amount)
             .deploy_contract(POOL_WASM_BYTES.to_vec())
             .function_call("new".into(), args, MAX_GAS, 0)
+            .sign(&self.signer);
+        let res = runtime.resolve_tx(tx).unwrap();
+        runtime.process_all().unwrap();
+        outcome_into_result(res)
+    }
+
+    pub fn add_to_whitelist(&self, runtime: &mut RuntimeStandalone, account_id: &AccountId) -> TxResult {
+        let args = json!({
+            "account_id": account_id
+        })
+        .to_string()
+        .as_bytes()
+        .to_vec();
+
+        let tx = self
+            .new_tx(runtime, POOL_ACCOUNT_ID.into())
+            .function_call("add_to_whitelist".into(), args, MAX_GAS, 0)
             .sign(&self.signer);
         let res = runtime.resolve_tx(tx).unwrap();
         runtime.process_all().unwrap();

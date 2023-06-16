@@ -508,6 +508,9 @@ impl StakingContract {
         self.internal_restake();
     }
 
+    /// Owner's method.
+    /// Add an account to the whitelist.
+    #[payable]
     pub fn add_to_whitelist(&mut self, account_id: AccountId) {
         self.assert_owner();
         assert!(

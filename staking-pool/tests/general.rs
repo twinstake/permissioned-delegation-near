@@ -9,11 +9,11 @@ fn multi_accounts_max_roundtrip() {
     struct AccountStake {
         pub account: ExternalUser,
         pub staked: Balance,
-    };
+    }
     let initial_pool_balance = ntoy(100);
     let (ref mut runtime, ref root) = init_pool(initial_pool_balance);
     assert_eq!(
-        pool_account(runtime).amount() + pool_account(runtime).locked(),
+        pool_account(runtime).amount + pool_account(runtime).locked,
         initial_pool_balance
     );
     let mut accounts: Vec<AccountStake> = vec![];
@@ -31,6 +31,7 @@ fn multi_accounts_max_roundtrip() {
         } else {
             break;
         };
+        root.add_to_whitelist(runtime, acc.account_id()).unwrap();
         acc.pool_deposit(runtime, to_spend).unwrap();
         spent_total += to_spend;
         dbg!(spent_total);
@@ -63,18 +64,19 @@ fn multi_accounts_max_roundtrip() {
     }
 
     assert_eq!(
-        pool_account(runtime).amount() + pool_account(runtime).locked(),
+        pool_account(runtime).amount + pool_account(runtime).locked,
         initial_pool_balance
     );
 }
 
 #[test]
-fn test_pause_resume() {
+fn pause_resume() {
     let deposit_amount = ntoy(40);
     let (mut runtime, root) = init_pool(ntoy(100));
     let bob = root
         .create_external(&mut runtime, "bob".into(), ntoy(100))
         .unwrap();
+    root.add_to_whitelist(&mut runtime, bob.account_id()).unwrap();
 
     assert!(!is_pool_paused(&mut runtime));
 
@@ -107,7 +109,7 @@ fn test_pause_resume() {
 
     bob.pool_ping(&mut runtime).unwrap();
 
-    assert_eq!(pool_account(&mut runtime).locked(), 0);
+    assert_eq!(pool_account(&mut runtime).locked, 0);
 
     let res = bob.get_account_staked_balance(&runtime);
     assert_eq!(res, deposit_amount);
@@ -116,7 +118,7 @@ fn test_pause_resume() {
 
     assert!(!is_pool_paused(&mut runtime));
 
-    assert_ne!(pool_account(&mut runtime).locked(), 0);
+    assert_ne!(pool_account(&mut runtime).locked, 0);
 
     for _ in 0..4 {
         wait_epoch(&mut runtime);
