@@ -124,13 +124,15 @@ impl ExternalUser {
         outcome_into_result(res)
     }
 
-    pub fn add_to_whitelist(&self, runtime: &mut RuntimeStandalone, account_id: &AccountId) -> TxResult {
-        let args = json!({
-            "account_id": account_id
-        })
-        .to_string()
-        .as_bytes()
-        .to_vec();
+    pub fn add_to_whitelist(
+        &self,
+        runtime: &mut RuntimeStandalone,
+        account_id: &AccountId,
+    ) -> TxResult {
+        let args = json!({ "account_id": account_id })
+            .to_string()
+            .as_bytes()
+            .to_vec();
 
         let tx = self
             .new_tx(runtime, POOL_ACCOUNT_ID.into())
@@ -309,7 +311,12 @@ pub fn init_pool(initial_transfer: Balance) -> (RuntimeStandalone, ExternalUser)
 }
 
 pub fn is_pool_paused(runtime: &mut RuntimeStandalone) -> bool {
-    call_view(runtime, &POOL_ACCOUNT_ID.parse().unwrap(), "is_staking_paused", "{}")
+    call_view(
+        runtime,
+        &POOL_ACCOUNT_ID.parse().unwrap(),
+        "is_staking_paused",
+        "{}",
+    )
 }
 
 pub fn reward_pool(runtime: &mut RuntimeStandalone, amount: Balance) {
