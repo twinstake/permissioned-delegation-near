@@ -1,7 +1,7 @@
 use std::convert::TryInto;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{UnorderedMap, LookupSet};
+use near_sdk::collections::{LookupSet, UnorderedMap};
 use near_sdk::json_types::{Base58PublicKey, U128};
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
@@ -693,7 +693,7 @@ mod tests {
         );
         emulator.update_context(owner(), 0);
         emulator.contract.add_to_whitelist(bob());
-        
+
         let deposit_amount = ntoy(1_000_000);
         emulator.update_context(bob(), deposit_amount);
         emulator.contract.deposit();

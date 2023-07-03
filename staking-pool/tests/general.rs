@@ -76,7 +76,8 @@ fn pause_resume() {
     let bob = root
         .create_external(&mut runtime, "bob".into(), ntoy(100))
         .unwrap();
-    root.add_to_whitelist(&mut runtime, bob.account_id()).unwrap();
+    root.add_to_whitelist(&mut runtime, bob.account_id())
+        .unwrap();
 
     assert!(!is_pool_paused(&mut runtime));
 
