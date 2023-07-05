@@ -89,10 +89,10 @@ fn pause_resume() {
         wait_epoch(&mut runtime);
     }
 
-    let mut pool = runtime.view_account(&POOL_ACCOUNT_ID.into()).unwrap();
+    let mut pool = runtime.view_account(&POOL_ACCOUNT_ID).unwrap();
     pool.amount += pool.locked;
     pool.locked = 0;
-    runtime.force_account_update(POOL_ACCOUNT_ID.into(), &pool);
+    runtime.force_account_update(todo!("POOL_ACCOUNT_ID.into()"), &pool);
 
     bob.pool_deposit(&mut runtime, deposit_amount).unwrap();
 
