@@ -36,9 +36,6 @@ construct_uint! {
 #[cfg(test)]
 mod test_utils;
 
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
 /// Inner account data of a delegate.
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
 pub struct Account {
