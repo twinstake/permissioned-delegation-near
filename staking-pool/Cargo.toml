@@ -20,12 +20,13 @@ overflow-checks = true
 [dependencies]
 near-sdk = "4.0.0-pre.9"
 wee_alloc = "0.4"
-uint = { version = "0.9.5", default-features = false }
+uint = { version = "0.8.3", default-features = false }
 
 [dev-dependencies]
 near-sdk-sim = "4.0.0-pre.9"
 lazy_static = "1.4.0"
-quickcheck = "1.0.3"
-quickcheck_macros = "1.0.0"
+quickcheck = "0.9"
+quickcheck_macros = "0.9"
 log = "0.4"
-env_logger = { version = "0.10.0", default-features = false }
+env_logger = { version = "0.7.1", default-features = false }
+
