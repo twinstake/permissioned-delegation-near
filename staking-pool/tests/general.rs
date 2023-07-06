@@ -1,8 +1,10 @@
 mod utils;
 
-use crate::utils::{is_pool_paused, reward_pool, POOL_ACCOUNT_ID};
-use near_primitives::types::Balance;
-use utils::{init_pool, ntoy, pool_account, wait_epoch, ExternalUser};
+use near_sdk::{AccountId, Balance};
+use utils::{
+    init_pool, is_pool_paused, ntoy, pool_account, reward_pool, wait_epoch, ExternalUser,
+    POOL_ACCOUNT_ID,
+};
 
 #[test]
 fn multi_accounts_max_roundtrip() {
@@ -24,9 +26,11 @@ fn multi_accounts_max_roundtrip() {
         to_spend = to_spend * 2;
 
         acc_no += 1;
-        let acc = if let Ok(acc) =
-            root.create_external(runtime, format!("account_{}", acc_no), ntoy(30) + to_spend)
-        {
+        let acc = if let Ok(acc) = root.create_external(
+            runtime,
+            AccountId::new_unchecked(format!("account_{}", acc_no)),
+            ntoy(30) + to_spend,
+        ) {
             acc
         } else {
             break;
@@ -35,7 +39,7 @@ fn multi_accounts_max_roundtrip() {
         acc.pool_deposit(runtime, to_spend).unwrap();
         spent_total += to_spend;
         dbg!(spent_total);
-        let pool_acc = runtime.view_account(&"pool".into()).unwrap();
+        let pool_acc = runtime.view_account(&"pool").unwrap();
         assert_eq!(
             pool_acc.amount + pool_acc.locked,
             initial_pool_balance + spent_total
@@ -74,7 +78,11 @@ fn pause_resume() {
     let deposit_amount = ntoy(40);
     let (mut runtime, root) = init_pool(ntoy(100));
     let bob = root
-        .create_external(&mut runtime, "bob".into(), ntoy(100))
+        .create_external(
+            &mut runtime,
+            AccountId::new_unchecked("bob".to_string()),
+            ntoy(100),
+        )
         .unwrap();
     root.add_to_whitelist(&mut runtime, bob.account_id())
         .unwrap();
@@ -89,10 +97,10 @@ fn pause_resume() {
         wait_epoch(&mut runtime);
     }
 
-    let mut pool = runtime.view_account(&POOL_ACCOUNT_ID.into()).unwrap();
+    let mut pool = runtime.view_account(POOL_ACCOUNT_ID).unwrap();
     pool.amount += pool.locked;
     pool.locked = 0;
-    runtime.force_account_update(POOL_ACCOUNT_ID.into(), &pool);
+    runtime.force_account_update(AccountId::new_unchecked(POOL_ACCOUNT_ID.to_string()), &pool);
 
     bob.pool_deposit(&mut runtime, deposit_amount).unwrap();
 
