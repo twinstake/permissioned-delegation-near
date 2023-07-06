@@ -534,7 +534,7 @@ mod tests {
     use std::{str::FromStr};
 
     use near_sdk::mock::VmAction;
-    use near_sdk::test_utils;
+    use near_sdk::test_utils::{self, VMContextBuilder};
     use near_sdk::{testing_env, VMContext};
 
     use crate::test_utils::*;
@@ -567,7 +567,7 @@ mod tests {
             let context = VMContextBuilder::new()
                 .current_account_id(AccountId::new_unchecked(owner.clone()))
                 .account_balance(ntoy(30))
-                .finish();
+                .build();
             testing_env!(context.clone());
             let contract = StakingContract::new(
                 AccountId::new_unchecked(owner.clone()),
@@ -609,7 +609,7 @@ mod tests {
                 .account_balance(self.amount)
                 .account_locked_balance(self.locked_amount)
                 .epoch_height(self.epoch_height)
-                .finish();
+                .build();
             testing_env!(self.context.clone());
             println!(
                 "Epoch: {}, Deposit: {}, amount: {}, locked_amount: {}",
