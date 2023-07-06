@@ -116,7 +116,7 @@ pub struct StakingContract {
 
 impl Default for StakingContract {
     fn default() -> Self {
-        env::panic(b"Staking contract should be initialized before usage")
+        env::panic_str("Staking contract should be initialized before usage")
     }
 }
 
@@ -531,11 +531,11 @@ impl StakingContract {
 #[cfg(test)]
 mod tests {
     use core::panic;
-    use std::{convert::TryFrom, str::FromStr};
+    use std::{str::FromStr};
 
     use near_sdk::mock::VmAction;
     use near_sdk::test_utils;
-    use near_sdk::{serde_json, testing_env, MockedBlockchain, VMContext};
+    use near_sdk::{testing_env, VMContext};
 
     use crate::test_utils::*;
 
