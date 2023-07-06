@@ -530,6 +530,7 @@ impl StakingContract {
 
 #[cfg(test)]
 mod tests {
+    use core::panic;
     use std::{convert::TryFrom, str::FromStr};
 
     use near_sdk::mock::VmAction;
@@ -642,28 +643,14 @@ mod tests {
         emulator.contract.internal_restake();
         let receipts = test_utils::get_created_receipts();
         assert_eq!(receipts.len(), 2);
-        // Mocked Receipt fields are private, so can't check directly.
-        // assert!(serde_json::to_string(&receipts[0])
-        //     .unwrap()
-        //     .contains("\"actions\":[{\"Stake\":{\"stake\":29999999999999000000000000,"));
-        // assert!(serde_json::to_string(&receipts[1])
-        //     .unwrap()
-        //     .contains("\"method_name\":\"on_stake_action\""));
-        let x = &receipts[0].actions[0];
-        let y = VmAction::Stake {
-            stake: 29999999999999000000000000,
-            public_key: todo!(),
+        match &receipts[0].actions[0] {
+            VmAction::Stake { stake, .. } => assert_eq!(*stake, 29999999999999000000000000),
+            _ => panic!(),
         };
-        assert_eq!(x, &y);
-
-        let x = &receipts[1].actions[0];
-        let y = VmAction::FunctionCall {
-            function_name: "on_stake_action".to_string(),
-            args: todo!(),
-            gas: todo!(),
-            deposit: todo!(),
-        };
-        assert_eq!(x, &y);
+        match &receipts[1].actions[0] {
+            VmAction::FunctionCall { function_name, .. } => assert_eq!(function_name, "on_stake_action"),
+            _ => panic!()
+        }
         emulator.simulate_stake_call();
 
         emulator.update_context(staking().to_string(), 0);
@@ -671,12 +658,10 @@ mod tests {
         emulator.contract.on_stake_action();
         let receipts = test_utils::get_created_receipts();
         assert_eq!(receipts.len(), 1);
-        // assert!(serde_json::to_string(&receipts[0])
-        //     .unwrap()
-        //     .contains("\"actions\":[{\"Stake\":{\"stake\":0,"));
-        let x = &receipts[0].actions[0];
-        let y = VmAction::Stake { stake: 0, public_key: todo!() };
-        assert_eq!(x, &y);
+        match &receipts[0].actions[0] {
+            VmAction::Stake { stake, .. } => assert_eq!(*stake, 0),
+            _ => panic!()
+        }
     }
 
     #[test]
