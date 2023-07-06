@@ -2,7 +2,7 @@ use std::convert::TryInto;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupSet, UnorderedMap};
-use near_sdk::json_types::{Base58PublicKey, U128};
+use near_sdk::json_types::U128;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
     env, ext_contract, near_bindgen, AccountId, Balance, EpochHeight, Promise, PromiseResult,
@@ -37,7 +37,7 @@ construct_uint! {
 mod test_utils;
 
 #[global_allocator]
-static ALLOC: near_sdk::wee_alloc::WeeAlloc = near_sdk::wee_alloc::WeeAlloc::INIT;
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 /// Inner account data of a delegate.
 #[derive(BorshDeserialize, BorshSerialize, Debug, PartialEq)]
@@ -174,7 +174,7 @@ impl StakingContract {
     #[init]
     pub fn new(
         owner_id: AccountId,
-        stake_public_key: Base58PublicKey,
+        stake_public_key: PublicKey,
         reward_fee_fraction: RewardFeeFraction,
     ) -> Self {
         assert!(!env::state_exists(), "Already initialized");
@@ -379,7 +379,7 @@ impl StakingContract {
     }
 
     /// Returns the staking public key
-    pub fn get_staking_key(&self) -> Base58PublicKey {
+    pub fn get_staking_key(&self) -> PublicKey {
         self.stake_public_key.clone().try_into().unwrap()
     }
 
@@ -453,7 +453,7 @@ impl StakingContract {
 
     /// Owner's method.
     /// Updates current public key to the new given public key.
-    pub fn update_staking_key(&mut self, stake_public_key: Base58PublicKey) {
+    pub fn update_staking_key(&mut self, stake_public_key: PublicKey) {
         self.assert_owner();
         // When updating the staking key, the contract has to restake.
         let _need_to_restake = self.internal_ping();
@@ -483,7 +483,12 @@ impl StakingContract {
             "Invalid voting account ID"
         );
 
-        ext_voting::vote(is_vote, &voting_account_id, NO_DEPOSIT, VOTE_GAS)
+        ext_voting::vote(
+            is_vote,
+            voting_account_id,
+            NO_DEPOSIT,
+            near_sdk::Gas(VOTE_GAS),
+        )
     }
 
     /// Owner's method.
@@ -528,8 +533,10 @@ impl StakingContract {
 
 #[cfg(test)]
 mod tests {
-    use std::convert::TryFrom;
+    use std::{convert::TryFrom, str::FromStr};
 
+    use near_sdk::mock::VmAction;
+    use near_sdk::test_utils;
     use near_sdk::{serde_json, testing_env, MockedBlockchain, VMContext};
 
     use crate::test_utils::*;
@@ -560,13 +567,13 @@ mod tests {
             reward_fee_fraction: RewardFeeFraction,
         ) -> Self {
             let context = VMContextBuilder::new()
-                .current_account_id(owner.clone())
+                .current_account_id(AccountId::new_unchecked(owner.clone()))
                 .account_balance(ntoy(30))
                 .finish();
             testing_env!(context.clone());
             let contract = StakingContract::new(
-                owner,
-                Base58PublicKey::try_from(stake_public_key).unwrap(),
+                AccountId::new_unchecked(owner.clone()),
+                PublicKey::from_str(&stake_public_key).unwrap(),
                 reward_fee_fraction,
             );
             let last_total_staked_balance = contract.total_staked_balance;
@@ -598,8 +605,8 @@ mod tests {
             self.verify_stake_price_increase_guarantee();
             self.context = VMContextBuilder::new()
                 .current_account_id(staking())
-                .predecessor_account_id(predecessor_account_id.clone())
-                .signer_account_id(predecessor_account_id)
+                .predecessor_account_id(AccountId::new_unchecked(predecessor_account_id.clone()))
+                .signer_account_id(AccountId::new_unchecked(predecessor_account_id))
                 .attached_deposit(deposit)
                 .account_balance(self.amount)
                 .account_locked_balance(self.locked_amount)
@@ -618,7 +625,7 @@ mod tests {
             self.amount = self.amount + self.locked_amount - total_stake;
             self.locked_amount = total_stake;
             // Second function call action
-            self.update_context(staking(), 0);
+            self.update_context(staking().to_string(), 0);
         }
 
         pub fn skip_epochs(&mut self, num: EpochHeight) {
@@ -630,44 +637,62 @@ mod tests {
     #[test]
     fn test_restake_fail() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.internal_restake();
-        let receipts = env::created_receipts();
+        let receipts = test_utils::get_created_receipts();
         assert_eq!(receipts.len(), 2);
         // Mocked Receipt fields are private, so can't check directly.
-        assert!(serde_json::to_string(&receipts[0])
-            .unwrap()
-            .contains("\"actions\":[{\"Stake\":{\"stake\":29999999999999000000000000,"));
-        assert!(serde_json::to_string(&receipts[1])
-            .unwrap()
-            .contains("\"method_name\":\"on_stake_action\""));
+        // assert!(serde_json::to_string(&receipts[0])
+        //     .unwrap()
+        //     .contains("\"actions\":[{\"Stake\":{\"stake\":29999999999999000000000000,"));
+        // assert!(serde_json::to_string(&receipts[1])
+        //     .unwrap()
+        //     .contains("\"method_name\":\"on_stake_action\""));
+        let x = &receipts[0].actions[0];
+        let y = VmAction::Stake {
+            stake: 29999999999999000000000000,
+            public_key: todo!(),
+        };
+        assert_eq!(x, &y);
+
+        let x = &receipts[1].actions[0];
+        let y = VmAction::FunctionCall {
+            function_name: "on_stake_action".to_string(),
+            args: todo!(),
+            gas: todo!(),
+            deposit: todo!(),
+        };
+        assert_eq!(x, &y);
         emulator.simulate_stake_call();
 
-        emulator.update_context(staking(), 0);
+        emulator.update_context(staking().to_string(), 0);
         testing_env_with_promise_results(emulator.context.clone(), PromiseResult::Failed);
         emulator.contract.on_stake_action();
-        let receipts = env::created_receipts();
+        let receipts = test_utils::get_created_receipts();
         assert_eq!(receipts.len(), 1);
-        assert!(serde_json::to_string(&receipts[0])
-            .unwrap()
-            .contains("\"actions\":[{\"Stake\":{\"stake\":0,"));
+        // assert!(serde_json::to_string(&receipts[0])
+        //     .unwrap()
+        //     .contains("\"actions\":[{\"Stake\":{\"stake\":0,"));
+        let x = &receipts[0].actions[0];
+        let y = VmAction::Stake { stake: 0, public_key: todo!() };
+        assert_eq!(x, &y);
     }
 
     #[test]
     fn test_deposit_withdraw() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
         let deposit_amount = ntoy(1_000_000);
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
-        emulator.update_context(bob(), deposit_amount);
+        emulator.update_context(bob().to_string(), deposit_amount);
         emulator.contract.deposit();
         emulator.amount += deposit_amount;
         assert_eq!(
@@ -684,21 +709,21 @@ mod tests {
     #[test]
     fn test_stake_with_fee() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             RewardFeeFraction {
                 numerator: 10,
                 denominator: 100,
             },
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
 
         let deposit_amount = ntoy(1_000_000);
-        emulator.update_context(bob(), deposit_amount);
+        emulator.update_context(bob().to_string(), deposit_amount);
         emulator.contract.deposit();
         emulator.amount += deposit_amount;
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.stake(deposit_amount.into());
         emulator.simulate_stake_call();
         assert_eq!(
@@ -711,7 +736,7 @@ mod tests {
         emulator.skip_epochs(10);
         // Overriding rewards (+ 100K reward)
         emulator.locked_amount = locked_amount + ntoy(100_000);
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.ping();
         let expected_amount = deposit_amount
             + ntoy((yton(deposit_amount) * 90_000 + n_locked_amount / 2) / n_locked_amount);
@@ -731,7 +756,7 @@ mod tests {
         // Overriding rewards (another 100K reward)
         emulator.locked_amount = locked_amount + ntoy(100_000);
 
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.ping();
         // previous balance plus (1_090_000 / 1_100_030)% of the 90_000 reward (rounding to nearest).
         assert_eq_in_near!(
@@ -753,17 +778,17 @@ mod tests {
     #[test]
     fn test_stake_unstake() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
         let deposit_amount = ntoy(1_000_000);
-        emulator.update_context(bob(), deposit_amount);
+        emulator.update_context(bob().to_string(), deposit_amount);
         emulator.contract.deposit();
         emulator.amount += deposit_amount;
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.stake(deposit_amount.into());
         emulator.simulate_stake_call();
         assert_eq!(
@@ -775,7 +800,7 @@ mod tests {
         emulator.skip_epochs(10);
         // Overriding rewards
         emulator.locked_amount = locked_amount + ntoy(10);
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.ping();
         assert_eq_in_near!(
             emulator.contract.get_account_staked_balance(bob()).0,
@@ -801,7 +826,7 @@ mod tests {
             .contract
             .is_account_unstaked_balance_available(bob()),);
         emulator.skip_epochs(4);
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         assert!(emulator
             .contract
             .is_account_unstaked_balance_available(bob()),);
@@ -810,14 +835,14 @@ mod tests {
     #[test]
     fn test_stake_all_unstake_all() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
         let deposit_amount = ntoy(1_000_000);
-        emulator.update_context(bob(), deposit_amount);
+        emulator.update_context(bob().to_string(), deposit_amount);
         emulator.contract.deposit_and_stake();
         emulator.amount += deposit_amount;
         emulator.simulate_stake_call();
@@ -832,7 +857,7 @@ mod tests {
         emulator.skip_epochs(10);
         // Overriding rewards
         emulator.locked_amount = locked_amount + ntoy(10);
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.ping();
         assert_eq_in_near!(
             emulator.contract.get_account_staked_balance(bob()).0,
@@ -851,25 +876,25 @@ mod tests {
     #[test]
     fn test_two_delegates() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
         emulator.contract.add_to_whitelist(alice());
-        emulator.update_context(alice(), ntoy(1_000_000));
+        emulator.update_context(alice().to_string(), ntoy(1_000_000));
         emulator.contract.deposit();
         emulator.amount += ntoy(1_000_000);
-        emulator.update_context(alice(), 0);
+        emulator.update_context(alice().to_string(), 0);
         emulator.contract.stake(ntoy(1_000_000).into());
         emulator.simulate_stake_call();
         emulator.skip_epochs(3);
-        emulator.update_context(bob(), ntoy(1_000_000));
+        emulator.update_context(bob().to_string(), ntoy(1_000_000));
 
         emulator.contract.deposit();
         emulator.amount += ntoy(1_000_000);
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.stake(ntoy(1_000_000).into());
         emulator.simulate_stake_call();
         assert_eq_in_near!(
@@ -877,7 +902,7 @@ mod tests {
             ntoy(1_000_000)
         );
         emulator.skip_epochs(3);
-        emulator.update_context(alice(), 0);
+        emulator.update_context(alice().to_string(), 0);
         emulator.contract.ping();
         assert_eq_in_near!(
             emulator.contract.get_account_staked_balance(alice()).0,
@@ -911,20 +936,20 @@ mod tests {
     #[test]
     fn test_low_balances() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(alice());
         let initial_balance = 100;
-        emulator.update_context(alice(), initial_balance);
+        emulator.update_context(alice().to_string(), initial_balance);
         emulator.contract.deposit();
         emulator.amount += initial_balance;
         let mut remaining = initial_balance;
         let mut amount = 1;
         while remaining >= 4 {
-            emulator.update_context(alice(), 0);
+            emulator.update_context(alice().to_string(), 0);
             amount = 2 + (amount - 1) % 3;
             emulator.contract.stake(amount.into());
             emulator.simulate_stake_call();
@@ -935,23 +960,23 @@ mod tests {
     #[test]
     fn test_rewards() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(alice());
         let initial_balance = ntoy(100);
-        emulator.update_context(alice(), initial_balance);
+        emulator.update_context(alice().to_string(), initial_balance);
         emulator.contract.deposit();
         emulator.amount += initial_balance;
         let mut remaining = 100;
         let mut amount = 1;
         while remaining >= 4 {
             emulator.skip_epochs(3);
-            emulator.update_context(alice(), 0);
+            emulator.update_context(alice().to_string(), 0);
             emulator.contract.ping();
-            emulator.update_context(alice(), 0);
+            emulator.update_context(alice().to_string(), 0);
             amount = 2 + (amount - 1) % 3;
             emulator.contract.stake(ntoy(amount).into());
             emulator.simulate_stake_call();
@@ -963,11 +988,11 @@ mod tests {
     #[should_panic(expected = "The account is not whitelisted")]
     fn test_deposit_not_whitelisted_fail() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(bob(), ntoy(100));
+        emulator.update_context(bob().to_string(), ntoy(100));
         emulator.contract.deposit();
     }
 
@@ -975,11 +1000,11 @@ mod tests {
     #[should_panic(expected = "The account is not whitelisted")]
     fn test_deposit_and_stake_not_whitelisted_fail() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(bob(), ntoy(100));
+        emulator.update_context(bob().to_string(), ntoy(100));
         emulator.contract.deposit_and_stake();
     }
 
@@ -987,11 +1012,11 @@ mod tests {
     #[should_panic(expected = "The account is not whitelisted")]
     fn test_stake_all_not_whitelisted_fail() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(bob(), ntoy(100));
+        emulator.update_context(bob().to_string(), ntoy(100));
         emulator.contract.stake_all();
     }
 
@@ -999,41 +1024,41 @@ mod tests {
     #[should_panic(expected = "The account is not whitelisted")]
     fn test_stake_not_whitelisted_fail() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(bob(), ntoy(100));
+        emulator.update_context(bob().to_string(), ntoy(100));
         emulator.contract.stake(ntoy(100).into());
     }
 
     #[test]
     fn test_add_to_whitelist() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
-        emulator.update_context(alice(), 0);
+        emulator.update_context(alice().to_string(), 0);
         assert!(emulator.contract.is_whitelisted_account_id(bob()));
     }
 
     #[test]
     fn test_remove_from_whitelist() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
-        emulator.update_context(alice(), 0);
+        emulator.update_context(alice().to_string(), 0);
         assert!(emulator.contract.is_whitelisted_account_id(bob()));
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.remove_from_whitelist(bob());
-        emulator.update_context(alice(), 0);
+        emulator.update_context(alice().to_string(), 0);
         assert!(!emulator.contract.is_whitelisted_account_id(bob()));
     }
 
@@ -1041,11 +1066,11 @@ mod tests {
     #[should_panic(expected = "Can only be called by the owner")]
     fn test_add_to_whitelist_not_owner() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(alice(), 0);
+        emulator.update_context(alice().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
     }
 
@@ -1053,13 +1078,13 @@ mod tests {
     #[should_panic(expected = "Can only be called by the owner")]
     fn test_remove_from_whitelist_not_owner() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
-        emulator.update_context(alice(), 0);
+        emulator.update_context(alice().to_string(), 0);
         assert!(emulator.contract.is_whitelisted_account_id(bob()));
         emulator.contract.remove_from_whitelist(bob());
     }
@@ -1067,29 +1092,29 @@ mod tests {
     #[test]
     fn test_remove_from_whitelist_not_existed() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
-        emulator.update_context(alice(), 0);
+        emulator.update_context(alice().to_string(), 0);
         assert!(emulator.contract.is_whitelisted_account_id(bob()));
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.remove_from_whitelist(alice());
     }
 
     #[test]
     fn test_add_to_whitelist_several_acconts() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
         emulator.contract.add_to_whitelist(alice());
-        emulator.update_context(alice(), 0);
+        emulator.update_context(alice().to_string(), 0);
         assert!(emulator.contract.is_whitelisted_account_id(bob()));
         assert!(emulator.contract.is_whitelisted_account_id(alice()));
     }
@@ -1097,37 +1122,37 @@ mod tests {
     #[test]
     fn test_add_to_whitelist_twice() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
         emulator.contract.add_to_whitelist(bob());
-        emulator.update_context(alice(), 0);
+        emulator.update_context(alice().to_string(), 0);
         assert!(emulator.contract.is_whitelisted_account_id(bob()));
     }
 
     #[test]
     fn test_deposit_withdraw_remove_from_whitelist() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
         let deposit_amount = ntoy(1_000_000);
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
-        emulator.update_context(bob(), deposit_amount);
+        emulator.update_context(bob().to_string(), deposit_amount);
         emulator.contract.deposit();
         emulator.amount += deposit_amount;
         assert_eq!(
             emulator.contract.get_account_unstaked_balance(bob()).0,
             deposit_amount
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.remove_from_whitelist(bob());
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.withdraw(deposit_amount.into());
         assert_eq!(
             emulator.contract.get_account_unstaked_balance(bob()).0,
@@ -1138,14 +1163,14 @@ mod tests {
     #[test]
     fn test_stake_unstake_remove_from_whitelist() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
         let deposit_amount = ntoy(1_000_000);
-        emulator.update_context(bob(), deposit_amount);
+        emulator.update_context(bob().to_string(), deposit_amount);
         emulator.contract.deposit();
         emulator.amount += deposit_amount;
         emulator.contract.stake(deposit_amount.into());
@@ -1158,10 +1183,10 @@ mod tests {
         // 10 epochs later, unstake half of the money.
         emulator.skip_epochs(10);
         // Overriding rewards
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.remove_from_whitelist(bob());
         emulator.locked_amount = locked_amount + ntoy(10);
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.ping();
         assert_eq_in_near!(
             emulator.contract.get_account_staked_balance(bob()).0,
@@ -1187,7 +1212,7 @@ mod tests {
             .contract
             .is_account_unstaked_balance_available(bob()),);
         emulator.skip_epochs(4);
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         assert!(emulator
             .contract
             .is_account_unstaked_balance_available(bob()),);
@@ -1196,14 +1221,14 @@ mod tests {
     #[test]
     fn test_stake_all_unstake_all_remove_from_whitelist() {
         let mut emulator = Emulator::new(
-            owner(),
+            owner().to_string(),
             "KuTCtARNzxZQ3YvXDeLjx83FDqxv2SdQTSbiq876zR7".to_string(),
             zero_fee(),
         );
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.add_to_whitelist(bob());
         let deposit_amount = ntoy(1_000_000);
-        emulator.update_context(bob(), deposit_amount);
+        emulator.update_context(bob().to_string(), deposit_amount);
         emulator.contract.deposit_and_stake();
         emulator.amount += deposit_amount;
         emulator.simulate_stake_call();
@@ -1216,11 +1241,11 @@ mod tests {
 
         // 10 epochs later, unstake all.
         emulator.skip_epochs(10);
-        emulator.update_context(owner(), 0);
+        emulator.update_context(owner().to_string(), 0);
         emulator.contract.remove_from_whitelist(bob());
         // Overriding rewards
         emulator.locked_amount = locked_amount + ntoy(10);
-        emulator.update_context(bob(), 0);
+        emulator.update_context(bob().to_string(), 0);
         emulator.contract.ping();
         assert_eq_in_near!(
             emulator.contract.get_account_staked_balance(bob()).0,

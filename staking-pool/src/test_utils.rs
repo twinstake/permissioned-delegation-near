@@ -1,18 +1,20 @@
-use near_sdk::{AccountId, MockedBlockchain, PromiseResult, VMContext};
+use std::convert::TryFrom;
+
+use near_sdk::{AccountId, Gas, MockedBlockchain, PromiseResult, PublicKey, VMContext};
 use near_sdk::{Balance, BlockHeight, EpochHeight};
 
 pub fn staking() -> AccountId {
-    "staking".to_string()
+    AccountId::new_unchecked("staking".to_string())
 }
 
 pub fn alice() -> AccountId {
-    "alice".to_string()
+    AccountId::new_unchecked("alice".to_string())
 }
 pub fn bob() -> AccountId {
-    "bob".to_string()
+    AccountId::new_unchecked("bob".to_string())
 }
 pub fn owner() -> AccountId {
-    "owner".to_string()
+    AccountId::new_unchecked("owner".to_string())
 }
 
 pub fn ntoy(near_amount: Balance) -> Balance {
@@ -42,10 +44,10 @@ impl VMContextBuilder {
     pub fn new() -> Self {
         Self {
             context: VMContext {
-                current_account_id: "".to_string(),
-                signer_account_id: "".to_string(),
-                signer_account_pk: vec![0, 1, 2],
-                predecessor_account_id: "".to_string(),
+                current_account_id: AccountId::new_unchecked("".to_string()),
+                signer_account_id: AccountId::new_unchecked("".to_string()),
+                signer_account_pk: PublicKey::try_from(vec![0, 1, 2]).unwrap(),
+                predecessor_account_id: AccountId::new_unchecked("".to_string()),
                 input: vec![],
                 epoch_height: 0,
                 block_index: 0,
@@ -54,9 +56,14 @@ impl VMContextBuilder {
                 account_locked_balance: 0,
                 storage_usage: 10u64.pow(6),
                 attached_deposit: 0,
-                prepaid_gas: 10u64.pow(18),
-                random_seed: vec![0, 1, 2],
-                is_view: false,
+                prepaid_gas: Gas(10u64.pow(18)),
+                random_seed: {
+                    let mut arr = [0; 32];
+                    arr[1] = 1;
+                    arr[2] = 2;
+                    arr
+                },
+                view_config: None,
                 output_data_receivers: vec![],
             },
         }
@@ -110,18 +117,15 @@ impl VMContextBuilder {
 }
 
 pub fn testing_env_with_promise_results(context: VMContext, promise_result: PromiseResult) {
-    let storage = near_sdk::env::take_blockchain_interface()
-        .unwrap()
-        .as_mut_mocked_blockchain()
-        .unwrap()
-        .take_storage();
+    let storage = near_sdk::mock::with_mocked_blockchain(|mb| mb.take_storage());
 
-    near_sdk::env::set_blockchain_interface(Box::new(MockedBlockchain::new(
+    near_sdk::env::set_blockchain_interface(MockedBlockchain::new(
         context,
-        Default::default(),
-        Default::default(),
+        near_sdk::VMConfig::test(),
+        near_sdk::RuntimeFeesConfig::test(),
         vec![promise_result],
         storage,
         Default::default(),
-    )));
+        None,
+    ));
 }
