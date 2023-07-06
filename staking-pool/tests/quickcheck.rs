@@ -8,16 +8,20 @@ extern crate quickcheck;
 #[macro_use(quickcheck)]
 extern crate quickcheck_macros;
 
-use near_primitives::types::Balance;
-use near_sdk::json_types::U128;
 use near_sdk::serde_json::json;
+use near_sdk::AccountId;
+use near_sdk::{json_types::U128, Balance};
 use utils::{call_pool, init_pool, ntoy, wait_epoch};
 
 #[quickcheck]
 fn qc_should_stake(initial_balance: Balance) -> bool {
     let (mut runtime, root) = init_pool(ntoy(30));
     let bob = root
-        .create_external(&mut runtime, "bob".into(), ntoy(100))
+        .create_external(
+            &mut runtime,
+            AccountId::new_unchecked("bob".to_string()),
+            ntoy(100),
+        )
         .unwrap();
     root.add_to_whitelist(&mut runtime, bob.account_id())
         .unwrap();
@@ -54,7 +58,11 @@ fn qc_test_deposit_withdraw_standalone(inital_balance: Balance) -> bool {
     let deposit_amount = ntoy(inital_balance);
     let (mut runtime, root) = init_pool(ntoy(100));
     let bob = root
-        .create_external(&mut runtime, "bob".into(), ntoy(100))
+        .create_external(
+            &mut runtime,
+            AccountId::new_unchecked("bob".to_string()),
+            ntoy(100),
+        )
         .unwrap();
     root.add_to_whitelist(&mut runtime, bob.account_id())
         .unwrap();
